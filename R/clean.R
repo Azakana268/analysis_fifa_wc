@@ -4,6 +4,11 @@ library(tidyverse)
 worldcups <- read.csv("data/raw/worldcups.csv")
 wcmatches <- read.csv("data/raw/wcmatches.csv")
 
+source(file.path("R", "team_normalization.R"))
+mapeo_equipos <- cargar_mapeo_equipos()
+worldcups <- normalizar_columnas_equipos(worldcups, mapeo_equipos)
+wcmatches <- normalizar_columnas_equipos(wcmatches, mapeo_equipos)
+
 head(worldcups)
 
 worldcups <- worldcups %>% mutate(
