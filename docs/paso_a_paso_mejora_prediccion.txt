@@ -1,0 +1,234 @@
+PASO A PASO DE LA MEJORA DE PREDICCIÓN HISTÓRICA
+================================================
+
+Este documento describe el flujo completo exigido para colaborar mediante issue, fork,
+rama, commits, pull request y revisión. Los comentarios, Request changes, aprobación y
+merge deben ser acciones reales del mantenedor. No deben crearse interacciones
+artificiales únicamente para cumplir la pauta.
+
+1. REVISIÓN INICIAL DEL PROYECTO
+Revisar README, Makefile, scripts de R, datos y funcionamiento antes de modificar:
+
+git status
+git branch --all
+git remote -v
+git log --graph --oneline --all
+
+2. CREACIÓN Y ACEPTACIÓN DEL ISSUE
+Crear el issue en el repositorio original. Incluir problema, justificación, cambios
+esperados y criterios de aceptación. Esperar un comentario real del mantenedor que
+acepte o solicite ajustes antes de programar.
+
+Issue utilizado:
+https://github.com/enzo-compiled/analysis_fifa_wc/issues/1
+
+3. CREACIÓN DEL FORK CON GITHUB CLI
+Comprobar autenticación y crear el fork si todavía no existe:
+
+gh auth status
+gh repo fork https://github.com/enzo-compiled/analysis_fifa_wc --clone=false
+
+Alternativamente, usar el botón Fork en GitHub con la cuenta Azakana268.
+
+4. CLONACIÓN LOCAL
+
+git clone https://github.com/Azakana268/analysis_fifa_wc.git
+cd analysis_fifa_wc
+
+5. CONFIGURACIÓN DE ORIGIN Y UPSTREAM
+
+git remote add upstream https://github.com/enzo-compiled/analysis_fifa_wc.git
+
+6. VERIFICACIÓN DE REMOTOS
+
+git remote -v
+
+origin debe ser el fork de Azakana268 y upstream el repositorio de enzo-compiled.
+
+7. SINCRONIZACIÓN CON UPSTREAM
+
+git fetch upstream
+git switch main
+git merge upstream/main
+git push origin main
+
+8. CREACIÓN DE LA RAMA INTEGRADORA Y RAMAS DE TRABAJO
+
+git switch -c mejoras
+git push -u origin mejoras
+git switch -c feature/normalizacion
+
+Las demás ramas se crean desde mejoras actualizada:
+
+git switch mejoras
+git pull --ff-only origin mejoras
+git switch -c feature/NOMBRE_DEL_CAMBIO
+
+9. INCORPORACIÓN DE DATOS
+Agregar `data/raw/datos 2022 y 2026.xlsx`. El libro contiene las 15 columnas compatibles
+con wcmatches.csv, fuentes, diccionario y 168 partidos finalizados. Incluye la final
+España 1-0 Argentina del 19-07-2026. El CSV original no se sobrescribe.
+
+10. NORMALIZACIÓN DE SELECCIONES
+Agregar R/team_normalization.R y data/reference/team_name_mapping.csv. Aplicar las
+equivalencias a las columnas de equipos existentes y conservar nombres desconocidos.
+
+11. ESTADÍSTICAS PREVIAS
+Agregar R/historical_features.R. Para cada partido usar solamente:
+
+date < fecha_partido
+
+Calcular partidos, resultados, goles, localía, fase, enfrentamientos y últimos cinco.
+
+12. MODIFICACIÓN DEL MODELO
+Modificar R/modeling.R para eliminar marcadores finales y usar división temporal.
+
+Rscript R/clean.R
+Rscript R/modeling.R
+
+13. CREACIÓN DE predecir_partido()
+Agregar R/prediction.R con normalización, validaciones y probabilidades H, D y A.
+
+Rscript -e "source('R/prediction.R'); print(predecir_partido('Spain', 'Argentina', 'Final', as.Date('2026-07-19')))"
+
+14. EJECUCIÓN DE PRUEBAS
+
+make test
+
+Sin Make:
+
+Rscript tests/test_team_normalization.R
+Rscript tests/test_recent_data.R
+Rscript R/clean.R
+Rscript tests/test_historical_features.R
+Rscript R/modeling.R
+Rscript tests/test_prediction.R
+
+No inventar resultados si R o una dependencia no está disponible.
+
+15. CREACIÓN DE CADA COMMIT
+Antes de cada commit revisar:
+
+git status
+git diff --check
+git diff --stat
+git add .
+git diff --cached --check
+git diff --cached --stat
+git diff --cached
+git commit -m "MENSAJE_DESCRIPTIVO"
+git log -1 --oneline
+
+Los commits deben representar avances reales. No crear commits vacíos.
+
+16. SINCRONIZACIÓN ANTES DEL PULL REQUEST
+
+git fetch upstream
+git switch main
+git merge upstream/main
+git switch mejoras
+git merge main
+
+Resolver y probar cualquier conflicto antes de continuar.
+
+17. PUSH DE LA RAMA
+
+git push -u origin NOMBRE_DE_LA_RAMA
+
+Después de integrar cada rama interna:
+
+git switch mejoras
+git pull --ff-only origin mejoras
+
+18. CREACIÓN DEL PULL REQUEST
+Abrir el PR final desde Azakana268:mejoras hacia enzo-compiled:main. Incluir título,
+descripción, archivos modificados, pruebas y capturas pertinentes.
+
+19. VINCULACIÓN CON EL ISSUE
+Incluir exactamente en la descripción del PR:
+
+Closes #1
+
+20. REVISIÓN FORMAL DEL MANTENEDOR
+El mantenedor debe abrir Files changed, revisar el código y enviar una revisión formal.
+
+21. DOS COMENTARIOS ESPECÍFICOS
+El mantenedor debe realizar al menos dos comentarios pertinentes sobre líneas o
+fragmentos concretos del cambio.
+
+22. REQUEST CHANGES REAL
+El mantenedor debe seleccionar Review changes, Request changes y explicar una
+modificación técnica real. No debe ser una solicitud artificial.
+
+23. CORRECCIÓN EN LA MISMA RAMA
+El colaborador debe permanecer en la rama del PR:
+
+git switch mejoras
+git status
+
+Modificar, probar y revisar los archivos solicitados.
+
+24. RESPUESTA A LOS COMENTARIOS
+Responder cada conversación en GitHub explicando cómo se resolvió. No marcar como
+resuelto antes de implementar y verificar el cambio.
+
+25. NUEVO PUSH
+
+git add RUTA_DE_LOS_ARCHIVOS_CORREGIDOS
+git diff --cached
+git commit -m "Corrige observaciones de la revisión"
+git push origin mejoras
+
+El pull request se actualiza automáticamente.
+
+26. APROBACIÓN
+El mantenedor vuelve a revisar y selecciona Review changes, Approve y Submit review.
+
+27. INTEGRACIÓN DEL PULL REQUEST
+Solo después de la aprobación, el mantenedor integra el PR en main mediante GitHub.
+
+28. CIERRE DEL ISSUE
+La expresión Closes #1 debe cerrar el issue al integrar. Si no ocurre, el mantenedor lo
+cierra manualmente después de verificar la integración.
+
+29. EVIDENCIAS FINALES POR COMANDOS
+
+git remote -v
+git branch --all
+git log --graph --oneline --all
+git log --pretty=format:"%h | %ad | %an | %ae | %s" --date=short
+
+Guardar la salida completa para ambos repositorios.
+
+30. CAPTURAS NECESARIAS PARA EL INFORME
+- Dos repositorios originales y sus enlaces.
+- Dos forks y sus enlaces.
+- Dos issues completos y respuesta del mantenedor.
+- Ramas de contribución.
+- Commits de cada colaborador.
+- Pull requests y sección Files changed.
+- Dos comentarios específicos de revisión en cada PR.
+- Evidencia de Request changes.
+- Correcciones y respuestas a comentarios.
+- Aprobación formal.
+- Pull request integrado.
+- Issue cerrado.
+- Historial final y visualización de ramas.
+- Salidas de remote, branch y ambos comandos log.
+- Ejecución de pruebas y ejemplo de predicción.
+
+31. DECLARACIÓN DEL USO DE INTELIGENCIA ARTIFICIAL
+Declaración sugerida:
+
+"Se utilizó inteligencia artificial como apoyo para la revisión, depuración,
+explicación y documentación del código. El estudiante revisó, ejecutó, comprendió y
+validó los cambios antes de incorporarlos al repositorio, y puede explicar y justificar
+el contenido entregado."
+
+COMANDOS OBLIGATORIOS FINALES
+=============================
+
+git remote -v
+git branch --all
+git log --graph --oneline --all
+git log --pretty=format:"%h | %ad | %an | %ae | %s" --date=short
