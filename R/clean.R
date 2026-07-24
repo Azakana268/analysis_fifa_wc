@@ -17,6 +17,9 @@ mapeo_equipos <- cargar_mapeo_equipos()
 worldcups <- normalizar_columnas_equipos(worldcups, mapeo_equipos)
 wcmatches <- normalizar_columnas_equipos(wcmatches, mapeo_equipos)
 
+source(file.path("R", "historical_features.R"))
+match_features <- crear_estadisticas_historicas(wcmatches)
+
 head(worldcups)
 
 worldcups <- worldcups %>% mutate(
@@ -40,3 +43,4 @@ wcmatches <- wcmatches %>% mutate(
 dir.create("data/processed", recursive = TRUE, showWarnings = FALSE)
 saveRDS(worldcups, "data/processed/worldcups.rds")
 saveRDS(wcmatches, "data/processed/wcmatches.rds")
+saveRDS(match_features, "data/processed/match_features.rds")
