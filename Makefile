@@ -1,4 +1,4 @@
-.PHONY: all load clean eda model report
+.PHONY: all load clean eda model report test predict
 
 all: load clean eda model report
 
@@ -16,3 +16,16 @@ model:
 
 report:
 	Rscript -e "rmarkdown::render('report/mini-proyecto.Rmd')"
+
+test:
+	Rscript tests/test_team_normalization.R
+	Rscript tests/test_recent_data.R
+	Rscript R/clean.R
+	Rscript tests/test_historical_features.R
+	Rscript R/modeling.R
+	Rscript tests/test_prediction.R
+
+predict:
+	Rscript R/clean.R
+	Rscript R/modeling.R
+	Rscript -e "source('R/prediction.R'); print(predecir_partido('Spain', 'Argentina', 'Final', as.Date('2026-07-19')))"
