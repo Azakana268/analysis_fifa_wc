@@ -20,6 +20,34 @@ stopifnot(features$away_previous_matches[[1]] == 0L)
 stopifnot(features$home_previous_matches[[2]] == 0L)
 stopifnot(features$away_previous_matches[[2]] == 0L)
 
+# El filtro debe ser estricto: un partido de la misma fecha queda fuera.
+historial_misma_fecha <- obtener_historial_anterior(
+  partidos,
+  as.Date("2020-01-01")
+)
+stopifnot(nrow(historial_misma_fecha) == 0L)
+historial_dia_siguiente <- obtener_historial_anterior(
+  partidos,
+  as.Date("2020-01-02")
+)
+stopifnot(nrow(historial_dia_siguiente) == 2L)
+stopifnot(max(historial_dia_siguiente$date) < as.Date("2020-01-02"))
+
+# También se respeta el timestamp: no entra un encuentro posterior del mismo día.
+con_horas <- partidos[1:2, , drop = FALSE]
+con_horas$date <- as.POSIXct(
+  c("2020-01-01 10:00:00", "2020-01-01 18:00:00"), tz = "UTC"
+)
+historial_hora <- obtener_historial_anterior(
+  con_horas, as.POSIXct("2020-01-01 15:00:00", tz = "UTC")
+)
+stopifnot(nrow(historial_hora) == 1L)
+stopifnot(max(historial_hora$date) < as.POSIXct("2020-01-01 15:00:00", tz = "UTC"))
+fuga_detectada <- try(validar_historial_sin_fuga(
+  as.Date("2020-01-01"), as.Date("2020-01-01")
+), silent = TRUE)
+stopifnot(inherits(fuga_detectada, "try-error"))
+
 # En la fecha siguiente, A sí tiene sus dos partidos anteriores disponibles.
 stopifnot(features$home_previous_matches[[3]] == 2L)
 stopifnot(features$away_previous_matches[[3]] == 1L)
