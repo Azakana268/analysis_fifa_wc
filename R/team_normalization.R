@@ -1,5 +1,5 @@
 # Utilidades para normalizar nombres de selecciones de forma centralizada.
-# Los nombres que no aparecen en el mapeo se conservan sin cambios.
+# Todo nombre no vacío debe existir en el mapeo antes de continuar el pipeline.
 
 columnas_equipos <- c(
   "home_team", "away_team", "winning_team", "losing_team",
@@ -76,6 +76,84 @@ normalizar_nombre_equipo <- function(nombre, mapeo, advertir_desconocidos = FALS
   resultado
 }
 
+obtener_nombres_no_mapeados <- function(
+    datos,
+    mapeo,
+    columnas = columnas_equipos,
+    origen = NA_character_) {
+  if (!is.data.frame(datos)) {
+    stop("'datos' debe ser un data.frame.", call. = FALSE)
+  }
+
+  presentes <- intersect(columnas, names(datos))
+  hallazgos <- lapply(presentes, function(columna) {
+    valores <- trimws(as.character(datos[[columna]]))
+    valores <- sort(unique(valores[!is.na(valores) & valores != ""]))
+    desconocidos <- setdiff(valores, mapeo$source_name)
+    if (length(desconocidos) == 0L) {
+      return(NULL)
+    }
+    data.frame(
+      origen = origen,
+      columna = columna,
+      nombre_no_mapeado = desconocidos,
+      stringsAsFactors = FALSE
+    )
+  })
+
+  hallazgos <- Filter(Negate(is.null), hallazgos)
+  if (length(hallazgos) == 0L) {
+    return(data.frame(
+      origen = character(), columna = character(),
+      nombre_no_mapeado = character(), stringsAsFactors = FALSE
+    ))
+  }
+  unique(do.call(rbind, hallazgos))
+}
+
+validar_nombres_mapeados <- function(
+    conjuntos,
+    mapeo,
+    ruta_reporte = file.path("output", "unmapped_team_names.csv"),
+    columnas = columnas_equipos) {
+  if (!is.list(conjuntos) || length(conjuntos) == 0L) {
+    stop("'conjuntos' debe ser una lista no vacía de data.frames.", call. = FALSE)
+  }
+  if (is.null(names(conjuntos)) || any(names(conjuntos) == "")) {
+    names(conjuntos) <- paste0("dataset_", seq_along(conjuntos))
+  }
+
+  no_mapeados <- Map(
+    function(datos, origen) obtener_nombres_no_mapeados(
+      datos, mapeo, columnas = columnas, origen = origen
+    ),
+    conjuntos, names(conjuntos)
+  )
+  no_mapeados <- Filter(function(x) nrow(x) > 0L, no_mapeados)
+
+  if (length(no_mapeados) == 0L) {
+    if (file.exists(ruta_reporte)) {
+      unlink(ruta_reporte)
+    }
+    return(invisible(TRUE))
+  }
+
+  reporte <- unique(do.call(rbind, no_mapeados))
+  reporte <- reporte[order(reporte$origen, reporte$columna, reporte$nombre_no_mapeado), ]
+  directorio <- dirname(ruta_reporte)
+  if (!dir.exists(directorio)) {
+    dir.create(directorio, recursive = TRUE)
+  }
+  write.csv(reporte, ruta_reporte, row.names = FALSE, fileEncoding = "UTF-8")
+
+  stop(
+    "Se encontraron nombres de equipos sin mapear. Se escribió el reporte en: ",
+    ruta_reporte,
+    ". Corrija data/reference/team_name_mapping.csv antes de continuar.",
+    call. = FALSE
+  )
+}
+
 normalizar_columnas_equipos <- function(
     datos,
     mapeo,
@@ -96,3 +174,4 @@ normalizar_columnas_equipos <- function(
 
   datos
 }
+
