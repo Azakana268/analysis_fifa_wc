@@ -18,7 +18,7 @@ report:
 	Rscript -e "rmarkdown::render('report/mini-proyecto.Rmd')"
 
 test:
-	Rscript tests/test_team_normalization.R
+	Rscript tests/test-team-normalization.R
 	Rscript tests/test_recent_data.R
 	Rscript R/clean.R
 	Rscript tests/test_historical_features.R
