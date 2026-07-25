@@ -11,7 +11,7 @@ if (!file.exists(ruta_features)) {
 }
 
 features <- readRDS(ruta_features)
-features$date <- as.Date(features$date)
+features$date <- normalizar_fecha_comparacion(features$date)
 features <- features[order(features$date, features$match_id), , drop = FALSE]
 
 prohibidas <- c(
@@ -26,14 +26,16 @@ fechas <- sort(unique(features$date))
 if (length(fechas) < 2L) {
   stop("No hay suficientes fechas para una división temporal.", call. = FALSE)
 }
-indice_corte <- max(1L, floor(0.8 * length(fechas)))
-fecha_corte <- fechas[[indice_corte]]
+indice_inicio_prueba <- max(2L, floor(0.8 * length(fechas)) + 1L)
+fecha_inicio_prueba <- fechas[[indice_inicio_prueba]]
 
-train <- features[features$date <= fecha_corte, , drop = FALSE]
-test <- features[features$date > fecha_corte, , drop = FALSE]
+# La comparación estricta evita que el entrenamiento incluya la fecha de prueba.
+train <- features[features$date < fecha_inicio_prueba, , drop = FALSE]
+test <- features[features$date >= fecha_inicio_prueba, , drop = FALSE]
 if (nrow(test) == 0L) {
   stop("La división temporal dejó el conjunto de prueba vacío.", call. = FALSE)
 }
+validar_historial_sin_fuga(train$date, fecha_inicio_prueba)
 
 predictores_activos <- columnas_predictoras_historicas[vapply(
   train[, columnas_predictoras_historicas, drop = FALSE],
@@ -69,7 +71,7 @@ saveRDS(
     modelo = modelo,
     predictores = predictores_activos,
     niveles_resultado = c("H", "D", "A"),
-    fecha_corte = fecha_corte,
+    fecha_corte = fecha_inicio_prueba,
     fecha_maxima_entrenamiento = max(train$date),
     filas_entrenamiento = nrow(train),
     filas_prueba = nrow(test),
@@ -84,3 +86,4 @@ cat("Prueba desde:", format(min(test$date)), "\n")
 cat("Filas de entrenamiento:", nrow(train), "\n")
 cat("Filas de prueba:", nrow(test), "\n")
 cat("Accuracy temporal:", sprintf("%.2f%%", 100 * accuracy), "\n")
+
