@@ -14,6 +14,14 @@ wcmatches <- combinar_partidos(wcmatches_historicos, wcmatches_recientes)
 
 source(file.path("R", "team_normalization.R"))
 mapeo_equipos <- cargar_mapeo_equipos()
+validar_nombres_mapeados(
+  list(
+    worldcups_raw = worldcups,
+    wcmatches_historicos_raw = wcmatches_historicos,
+    wcmatches_recientes_raw = wcmatches_recientes
+  ),
+  mapeo_equipos
+)
 worldcups <- normalizar_columnas_equipos(worldcups, mapeo_equipos)
 wcmatches <- normalizar_columnas_equipos(wcmatches, mapeo_equipos)
 
