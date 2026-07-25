@@ -25,6 +25,55 @@ parametros_suavizado <- list(
   puntos_por_partido = 1.25
 )
 
+normalizar_fecha_comparacion <- function(fechas, usar_timestamp = NULL) {
+  if (is.null(usar_timestamp)) {
+    usar_timestamp <- inherits(fechas, "POSIXt") || any(grepl(
+      "[T ]\\d{1,2}:\\d{2}", as.character(fechas)
+    ))
+  }
+
+  if (isTRUE(usar_timestamp)) {
+    resultado <- as.POSIXct(fechas, tz = "UTC")
+  } else {
+    resultado <- as.Date(fechas)
+  }
+  if (anyNA(resultado)) {
+    stop("Existen fechas inválidas para la comparación temporal.", call. = FALSE)
+  }
+  resultado
+}
+
+validar_historial_sin_fuga <- function(training_dates, match_date) {
+  usar_timestamp <- inherits(training_dates, "POSIXt") ||
+    inherits(match_date, "POSIXt") ||
+    any(grepl("[T ]\\d{1,2}:\\d{2}", as.character(c(training_dates, match_date))))
+  training_dates <- normalizar_fecha_comparacion(training_dates, usar_timestamp)
+  match_date <- normalizar_fecha_comparacion(match_date, usar_timestamp)
+
+  if (length(match_date) != 1L) {
+    stop("match_date debe contener exactamente una fecha.", call. = FALSE)
+  }
+  if (length(training_dates) > 0L && max(training_dates) >= match_date) {
+    stop(
+      "Fuga temporal detectada: max(training$date) debe ser menor que match_date.",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
+obtener_historial_anterior <- function(partidos, match_date) {
+  usar_timestamp <- inherits(partidos$date, "POSIXt") ||
+    inherits(match_date, "POSIXt") ||
+    any(grepl("[T ]\\d{1,2}:\\d{2}", as.character(c(partidos$date, match_date))))
+  fechas <- normalizar_fecha_comparacion(partidos$date, usar_timestamp)
+  match_date <- normalizar_fecha_comparacion(match_date, usar_timestamp)
+  partidos$date <- fechas
+  historial <- partidos[fechas < match_date, , drop = FALSE]
+  validar_historial_sin_fuga(historial$date, match_date)
+  historial
+}
+
 validar_partidos_para_features <- function(partidos) {
   requeridas <- c(
     "year", "stage", "home_team", "away_team", "home_score",
@@ -212,15 +261,15 @@ construir_fila_historica <- function(partido, historial, match_id) {
 crear_estadisticas_historicas <- function(partidos) {
   validar_partidos_para_features(partidos)
   partidos <- as.data.frame(partidos, stringsAsFactors = FALSE)
-  partidos$date <- as.Date(partidos$date)
+  partidos$date <- normalizar_fecha_comparacion(partidos$date)
   orden <- order(partidos$date, seq_len(nrow(partidos)))
   partidos <- partidos[orden, , drop = FALSE]
   rownames(partidos) <- NULL
 
   filas <- vector("list", nrow(partidos))
   for (i in seq_len(nrow(partidos))) {
-    # La comparación estricta impide usar el partido actual o partidos del mismo día.
-    historial <- partidos[partidos$date < partidos$date[[i]], , drop = FALSE]
+    # La comparación estricta excluye el partido actual y los del mismo día/hora.
+    historial <- obtener_historial_anterior(partidos, partidos$date[[i]])
     filas[[i]] <- construir_fila_historica(
       partidos[i, , drop = FALSE], historial, match_id = i
     )
@@ -234,9 +283,12 @@ crear_estadisticas_historicas <- function(partidos) {
 crear_predictores_partido <- function(
     historial, equipo_local, equipo_visitante, fase, fecha_partido) {
   validar_partidos_para_features(historial)
-  fecha_partido <- as.Date(fecha_partido)
-  historial$date <- as.Date(historial$date)
-  historial_previo <- historial[historial$date < fecha_partido, , drop = FALSE]
+  usar_timestamp <- inherits(historial$date, "POSIXt") ||
+    inherits(fecha_partido, "POSIXt") ||
+    any(grepl("[T ]\\d{1,2}:\\d{2}", as.character(c(historial$date, fecha_partido))))
+  fecha_partido <- normalizar_fecha_comparacion(fecha_partido, usar_timestamp)
+  historial$date <- normalizar_fecha_comparacion(historial$date, usar_timestamp)
+  historial_previo <- obtener_historial_anterior(historial, fecha_partido)
 
   partido <- data.frame(
     year = as.integer(format(fecha_partido, "%Y")),
